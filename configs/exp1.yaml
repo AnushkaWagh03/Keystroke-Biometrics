@@ -1,0 +1,16 @@
+experiment_name: experiment1
+
+dataset:
+  name: aalto
+
+model:
+  name: placeholder_model
+  parameters:
+    threshold: 0.5
+
+evaluation:
+  metrics:
+    - FAR
+    - EER
+    - ANGA
+    - ANIA

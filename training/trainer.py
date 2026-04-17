@@ -24,15 +24,35 @@ class Trainer:
 
     def evaluate(self):
         print("Evaluating model...")
-        
-        # Generating dummy scores and labels for demonstration
+        import time
         import numpy as np
+        
         labels = [1]*50 + [0]*50
-        scores = np.random.uniform(0.6, 0.9, 50).tolist() + np.random.uniform(0.1, 0.4, 50).tolist()
+        scores = []
+        auth_times = []
+        
+        # Simulate timing each authentication attempt
+        for i in range(len(labels)):
+            start_time = time.perf_counter()
+            
+            # Simulate processing delay
+            # In a real scenario, this would be self.model.predict(data)
+            time.sleep(np.random.uniform(0.005, 0.02)) 
+            
+            if i < 50: # Genuine
+                score = np.random.uniform(0.6, 0.9)
+            else: # Impostor
+                score = np.random.uniform(0.1, 0.4)
+                
+            end_time = time.perf_counter()
+            
+            scores.append(score)
+            auth_times.append(end_time - start_time)
         
         results = {
             "scores": scores,
             "labels": labels,
+            "auth_times": auth_times,
             "ANGA": 0.12,
             "ANIA": 0.09
         }

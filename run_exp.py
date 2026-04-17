@@ -39,6 +39,9 @@ def main():
             'scores': [float(s) for s in results['scores']],
             'labels': [int(l) for l in results['labels']]
         }
+        if 'auth_times' in results:
+            scores_to_save['auth_times'] = [float(t) for t in results['auth_times']]
+            
         with open(scores_path, 'w') as f:
             json.dump(scores_to_save, f, indent=4)
 

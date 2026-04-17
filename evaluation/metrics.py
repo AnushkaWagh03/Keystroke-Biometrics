@@ -90,6 +90,13 @@ def compute_metrics(results):
         results['TPR'] = tpr
         results['ROC_AUC'] = roc_auc
     
+    if 'auth_times' in results:
+        times = np.array(results['auth_times'])
+        results['Avg Auth Time (ms)'] = float(np.mean(times) * 1000)
+        results['Min Auth Time (ms)'] = float(np.min(times) * 1000)
+        results['Max Auth Time (ms)'] = float(np.max(times) * 1000)
+        results['Std Auth Time (ms)'] = float(np.std(times) * 1000)
+    
     # Your existing loop - KEEP THIS
     for key, value in results.items():
         # Avoid printing large arrays directly to console if possible, but keep the structure

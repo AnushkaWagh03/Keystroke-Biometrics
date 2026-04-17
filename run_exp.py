@@ -19,7 +19,7 @@ def main():
     trainer.train()
     results = trainer.evaluate()
     
-    metrics = compute_metrics(results)
+    metrics = compute_metrics(results, config)
 
     report_dir = os.path.join("reports", config["experiment_name"])
     os.makedirs(report_dir, exist_ok=True)

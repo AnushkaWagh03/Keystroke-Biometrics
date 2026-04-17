@@ -1,0 +1,17 @@
+experiment_name: cmu_identification_experiment
+
+dataset:
+  name: cmu
+
+model:
+  name: placeholder_model
+  parameters:
+    threshold: 0.5
+
+evaluation:
+  metrics:
+    - FAR
+    - EER
+    - ANGA
+    - ANIA
+  rank_n_values: [1, 3, 5, 10, 20]

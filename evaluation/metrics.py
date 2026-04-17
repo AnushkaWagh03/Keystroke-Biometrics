@@ -1,5 +1,23 @@
 import numpy as np
 
+def calculate_rank_n_accuracy(rankings, true_labels, n_values=[1, 3, 5, 10, 20]):
+    if not rankings or not true_labels or len(rankings) != len(true_labels):
+        return {}
+        
+    accuracies = {}
+    total_samples = len(true_labels)
+    
+    for n in n_values:
+        correct = 0
+        for i in range(total_samples):
+            # Check if true_label is in the top-N predicted rankings
+            top_n_preds = rankings[i][:n]
+            if true_labels[i] in top_n_preds:
+                correct += 1
+        accuracies[f"Rank-{n} Accuracy"] = float(correct / total_samples)
+        
+    return accuracies
+
 def calculate_roc_auc(scores, labels):
     if not scores or not labels or len(scores) == 0 or len(labels) == 0:
         return [], [], 0.0
@@ -75,7 +93,7 @@ def calculate_eer(scores, labels):
     
     return far.tolist(), frr.tolist(), float(eer), float(optimal_th)
 
-def compute_metrics(results):
+def compute_metrics(results, config=None):
     print("Computing metrics...")
     
     if 'scores' in results and 'labels' in results:
@@ -89,6 +107,18 @@ def compute_metrics(results):
         results['FPR'] = fpr
         results['TPR'] = tpr
         results['ROC_AUC'] = roc_auc
+    
+    if 'ident_rankings' in results and 'ident_true_labels' in results:
+        n_values = [1, 3, 5, 10, 20]
+        if config and 'evaluation' in config and 'rank_n_values' in config['evaluation']:
+            n_values = config['evaluation']['rank_n_values']
+            
+        rank_n_results = calculate_rank_n_accuracy(
+            results['ident_rankings'], 
+            results['ident_true_labels'], 
+            n_values
+        )
+        results.update(rank_n_results)
     
     if 'auth_times' in results:
         times = np.array(results['auth_times'])

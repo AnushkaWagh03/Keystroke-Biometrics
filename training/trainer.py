@@ -57,5 +57,27 @@ class Trainer:
             "ANIA": 0.09
         }
         
+        # Simulate identification data
+        num_test_samples = 50
+        num_total_users = 30
+        ident_true_labels = np.random.randint(0, num_total_users, num_test_samples).tolist()
+        ident_rankings = []
+        
+        for true_label in ident_true_labels:
+            # Generate a ranking where the true label is more likely to be at the top
+            ranking = list(range(num_total_users))
+            np.random.shuffle(ranking)
+            
+            # Artificial boost: put true_label in top-N with some probability
+            if np.random.random() > 0.3: # 70% chance to be in top-3
+                target_pos = np.random.randint(0, 3)
+                idx = ranking.index(true_label)
+                ranking[idx], ranking[target_pos] = ranking[target_pos], ranking[idx]
+            
+            ident_rankings.append(ranking)
+            
+        results["ident_rankings"] = ident_rankings
+        results["ident_true_labels"] = ident_true_labels
+        
         print("Evaluation completed.\n")
         return results

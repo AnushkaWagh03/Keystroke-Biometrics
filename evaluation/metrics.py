@@ -18,7 +18,7 @@ def calculate_rank_n_accuracy(rankings, true_labels, n_values=[1, 3, 5, 10, 20])
         
     return accuracies
 
-def calculate_roc_auc(scores, labels):
+def calculate_roc_auc(scores, labels, n_thresholds=None):
     if not scores or not labels or len(scores) == 0 or len(labels) == 0:
         return [], [], 0.0
         
@@ -31,7 +31,13 @@ def calculate_roc_auc(scores, labels):
     if len(genuine_scores) == 0 or len(impostor_scores) == 0:
         return [], [], 0.0
         
-    thresholds = np.sort(np.unique(scores))
+    unique_thresholds = np.sort(np.unique(scores))
+    if n_thresholds and len(unique_thresholds) > n_thresholds:
+        # Subsample thresholds to speed up computation
+        indices = np.round(np.linspace(0, len(unique_thresholds) - 1, n_thresholds)).astype(int)
+        thresholds = unique_thresholds[indices]
+    else:
+        thresholds = unique_thresholds
     
     fpr = []
     tpr = []
@@ -58,7 +64,7 @@ def calculate_roc_auc(scores, labels):
     
     return fpr, tpr, float(auc)
 
-def calculate_eer(scores, labels):
+def calculate_eer(scores, labels, n_thresholds=None):
     if not scores or not labels or len(scores) == 0 or len(labels) == 0:
         return 0.0, 0.0, 0.0, 0.0
         
@@ -71,7 +77,13 @@ def calculate_eer(scores, labels):
     if len(genuine_scores) == 0 or len(impostor_scores) == 0:
         return 0.0, 0.0, 0.0, 0.0
         
-    thresholds = np.sort(np.unique(scores))
+    unique_thresholds = np.sort(np.unique(scores))
+    if n_thresholds and len(unique_thresholds) > n_thresholds:
+        # Subsample thresholds to speed up computation
+        indices = np.round(np.linspace(0, len(unique_thresholds) - 1, n_thresholds)).astype(int)
+        thresholds = unique_thresholds[indices]
+    else:
+        thresholds = unique_thresholds
     
     far = []
     frr = []
@@ -96,44 +108,75 @@ def calculate_eer(scores, labels):
 def compute_metrics(results, config=None):
     print("Computing metrics...")
     
-    if 'scores' in results and 'labels' in results:
-        far, frr, eer, opt_th = calculate_eer(results['scores'], results['labels'])
-        results['FAR'] = far
-        results['FRR'] = frr
-        results['EER'] = eer
-        results['Optimal_Threshold'] = opt_th
-        
-        fpr, tpr, roc_auc = calculate_roc_auc(results['scores'], results['labels'])
-        results['FPR'] = fpr
-        results['TPR'] = tpr
-        results['ROC_AUC'] = roc_auc
+    # Get evaluation config with defaults
+    eval_cfg = config.get('evaluation', {}) if config else {}
     
-    if 'ident_rankings' in results and 'ident_true_labels' in results:
-        n_values = [1, 3, 5, 10, 20]
-        if config and 'evaluation' in config and 'rank_n_values' in config['evaluation']:
-            n_values = config['evaluation']['rank_n_values']
+    # Verification metrics (EER, ROC, FAR, FRR, ANGA, ANIA)
+    verif_cfg = eval_cfg.get('verification', {'enabled': True})
+    if verif_cfg.get('enabled', False):
+        requested_metrics = verif_cfg.get('metrics', ["EER", "ROC_AUC", "FAR", "FRR", "ANGA", "ANIA"])
+        n_thresholds = verif_cfg.get('n_thresholds')
+        
+        if 'scores' in results and 'labels' in results:
+            # We always need curves for verification metrics
+            far_list, frr_list, eer, opt_th = calculate_eer(results['scores'], results['labels'], n_thresholds)
+            fpr_list, tpr_list, roc_auc = calculate_roc_auc(results['scores'], results['labels'], n_thresholds)
             
+            if "EER" in requested_metrics:
+                results['EER'] = float(eer)
+                results['Optimal_Threshold'] = float(opt_th)
+            if "ROC_AUC" in requested_metrics:
+                results['ROC_AUC'] = float(roc_auc)
+            if "FAR" in requested_metrics:
+                results['FAR'] = far_list
+            if "FRR" in requested_metrics:
+                results['FRR'] = frr_list
+                
+            # These are usually needed for plotting anyway if visualization is enabled
+            results['FPR'] = fpr_list
+            results['TPR'] = tpr_list
+        
+        # Filter other verification metrics like ANGA/ANIA if they exist
+        for m in ["ANGA", "ANIA"]:
+            if m in results and m not in requested_metrics:
+                del results[m]
+    else:
+        # If verification is disabled, remove related metrics
+        for m in ["EER", "Optimal_Threshold", "ROC_AUC", "FAR", "FRR", "FPR", "TPR", "ANGA", "ANIA"]:
+            if m in results: del results[m]
+    
+    # Identification metrics (Rank-N)
+    ident_cfg = eval_cfg.get('identification', {'enabled': True})
+    if ident_cfg.get('enabled', False) and 'ident_rankings' in results and 'ident_true_labels' in results:
+        n_values = ident_cfg.get('rank_n_values', [1, 3, 5, 10, 20])
         rank_n_results = calculate_rank_n_accuracy(
             results['ident_rankings'], 
             results['ident_true_labels'], 
             n_values
         )
         results.update(rank_n_results)
+        
+        # Also store Rank-1 predictions for confusion matrix
+        results['ident_rank1_preds'] = [r[0] for r in results['ident_rankings']]
     
-    if 'auth_times' in results:
+    # Performance metrics (Authentication Time)
+    perf_cfg = eval_cfg.get('performance', {'enabled': True})
+    if perf_cfg.get('enabled', False) and 'auth_times' in results:
         times = np.array(results['auth_times'])
         results['Avg Auth Time (ms)'] = float(np.mean(times) * 1000)
         results['Min Auth Time (ms)'] = float(np.min(times) * 1000)
         results['Max Auth Time (ms)'] = float(np.max(times) * 1000)
         results['Std Auth Time (ms)'] = float(np.std(times) * 1000)
     
-    # Your existing loop - KEEP THIS
+    # Print results summary
     for key, value in results.items():
-        # Avoid printing large arrays directly to console if possible, but keep the structure
         if isinstance(value, list) and len(value) > 20:
-            print(f"{key}: [List of {len(value)} items]")
-        else:
-            print(f"{key}: {value}")
+            # Don't print large lists
+            continue
+        if key not in ['scores', 'labels', 'ident_rankings', 'ident_true_labels', 'auth_times', 'ident_rank1_preds']:
+            if isinstance(value, float):
+                print(f"{key}: {value:.4f}")
+            else:
+                print(f"{key}: {value}")
     
-    # ADD this return statement
-    return results
+    return results

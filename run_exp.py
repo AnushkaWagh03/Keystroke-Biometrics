@@ -12,7 +12,16 @@ def main():
     parser.add_argument("--save_scores", action='store_true', help="Save raw scores to file")
     args = parser.parse_args()
 
-    config = load_config(args.config)
+    # Robust path resolution
+    config_path = args.config
+    if not os.path.exists(config_path):
+        # Try relative to the script's directory
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        alt_path = os.path.join(script_dir, config_path)
+        if os.path.exists(alt_path):
+            config_path = alt_path
+            
+    config = load_config(config_path)
     print("Experiment Loaded:", config["experiment_name"], "\n")
 
     trainer = Trainer(config)
@@ -21,11 +30,13 @@ def main():
     
     metrics = compute_metrics(results, config)
 
-    report_dir = os.path.join("reports", config["experiment_name"])
+    # Resolve report directory relative to project root
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    report_dir = os.path.join(script_dir, "reports", config["experiment_name"])
     os.makedirs(report_dir, exist_ok=True)
 
     plot_path = os.path.join(report_dir, "metrics_plot.png")
-    generate_plots(metrics, plot_path)
+    generate_plots(metrics, plot_path, config)
     
     # Save metrics to JSON file
     metrics_path = os.path.join(report_dir, "metrics.json")

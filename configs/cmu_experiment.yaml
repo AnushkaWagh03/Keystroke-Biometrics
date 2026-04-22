@@ -9,9 +9,19 @@ model:
     threshold: 0.5
 
 evaluation:
-  metrics:
-    - FAR
-    - EER
-    - ANGA
-    - ANIA
-  rank_n_values: [1, 3, 5, 10, 20]
+  verification:
+    enabled: true
+    metrics: ["EER", "ROC_AUC", "ANGA"] # Demonstrate metric selection
+    n_thresholds: 100
+  identification:
+    enabled: true
+    rank_n_values: [1, 3, 5, 10, 20]
+  performance:
+    enabled: true # Authentication time metrics
+  visualization:
+    plot_roc: true
+    plot_rank_n: true
+    plot_auth_times: true
+    plot_verification_bars: true
+    save_individual_plots: true
+
